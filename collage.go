@@ -13,7 +13,6 @@ import (
 )
 
 var usage = `Usage: collage [options...] [FOLDER]
-
 Options:
 	-n 	Number of images to display (randomly) from folder
 `
@@ -56,5 +55,7 @@ func main() {
 	})
 	http.Handle("/", http.FileServer(rice.MustFindBox("static").HTTPBox()))
 
+	fmt.Printf("Collage of [%d] images from [%s] 🎨\n", num, folder)
+	fmt.Println("Serving on http://localhost:2222")
 	http.ListenAndServe(":2222", nil)
 }

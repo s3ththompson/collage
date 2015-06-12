@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"net/http"
 	"path/filepath"
+	"strings"
 )
 
 func dataHandler(w http.ResponseWriter, r *http.Request, folder string, num int) {
@@ -14,14 +15,14 @@ func dataHandler(w http.ResponseWriter, r *http.Request, folder string, num int)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	options := struct {
+	data := struct {
 		Folder string   `json:"folder"`
 		Images []string `json:"images"`
 	}{
 		filepath.Base(folder),
 		images,
 	}
-	js, err := json.Marshal(options)
+	js, err := json.Marshal(data)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -43,7 +44,7 @@ func fetchImages(folder string, num int) ([]string, error) {
 		out = append(out, fp.Name())
 	}
 	Shuffle(out)
-	if num != 0 {
+	if num != 0 && num < len(out){
 		return out[:num], nil
 	} else {
 		return out, nil
@@ -58,6 +59,6 @@ func Shuffle(a []string) {
 }
 
 func isImage(name string) bool {
-	ext := filepath.Ext(name)
+	ext := strings.ToLower(filepath.Ext(name))
 	return (ext == ".gif" || ext == ".jpg" || ext == ".jpeg" || ext == ".png")
 }
