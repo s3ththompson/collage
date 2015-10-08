@@ -21,6 +21,11 @@ var (
 	n = flag.Int("n", 100, "")
 )
 
+type Collage struct {
+	Folder string   `json:"folder"`
+	Images []string `json:"images"`
+}
+
 func main() {
 	rand.Seed(time.Now().UnixNano())
 
@@ -40,6 +45,15 @@ func main() {
 		fmt.Fprintln(os.Stderr, "filepath error")
 		os.Exit(1)
 	}
+	src, err := os.Stat(folder)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "directory does not exist")
+		os.Exit(1)
+	}
+	if !src.IsDir() {
+		fmt.Fprintln(os.Stderr, "path is not a directory")
+		os.Exit(1)
+	}
 
 	num := *n
 	if num < 0 {
@@ -47,11 +61,25 @@ func main() {
 		os.Exit(1)
 	}
 
+	images, err := fetchImages(folder, num)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "cannot read directory files")
+		os.Exit(1)
+	}
+	if len(images) == 0 {
+		fmt.Fprintln(os.Stderr, "no images in folder")
+		os.Exit(1)
+	}
+	collage := Collage{
+		filepath.Base(folder),
+		images,
+	}
+
 	http.HandleFunc("/i/", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, r.URL.Path[3:])
+		http.ServeFile(w, r, filepath.Join(folder, r.URL.Path[3:]))
 	})
 	http.HandleFunc("/data.json", func(w http.ResponseWriter, r *http.Request) {
-		dataHandler(w, r, folder, num)
+		dataHandler(w, r, collage)
 	})
 	http.Handle("/", http.FileServer(rice.MustFindBox("static").HTTPBox()))
 

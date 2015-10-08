@@ -9,20 +9,8 @@ import (
 	"strings"
 )
 
-func dataHandler(w http.ResponseWriter, r *http.Request, folder string, num int) {
-	images, err := fetchImages(folder, num)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	data := struct {
-		Folder string   `json:"folder"`
-		Images []string `json:"images"`
-	}{
-		filepath.Base(folder),
-		images,
-	}
-	js, err := json.Marshal(data)
+func dataHandler(w http.ResponseWriter, r *http.Request, collage Collage) {
+	js, err := json.Marshal(collage)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
