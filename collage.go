@@ -15,17 +15,12 @@ import (
 
 var usage = `Usage: collage [options...] [FOLDER]
 Options:
-	-n 	Number of images to display (randomly) from folder
+	-n 	Number of images to display (randomly) from folder (default 100)
 `
 
 var (
 	n = flag.Int("n", 100, "")
 )
-
-type Collage struct {
-	Folder string   `json:"folder"`
-	Images []string `json:"images"`
-}
 
 func main() {
 	rand.Seed(time.Now().UnixNano())
@@ -44,34 +39,38 @@ func main() {
 	folder, err := filepath.Abs(folderName)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "filepath error")
-		os.Exit(1)
+		return
 	}
 	src, err := os.Stat(folder)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "directory does not exist")
-		os.Exit(1)
+		return
 	}
 	if !src.IsDir() {
 		fmt.Fprintln(os.Stderr, "path is not a directory")
-		os.Exit(1)
+		return
 	}
 
 	num := *n
 	if num < 0 {
 		fmt.Fprintln(os.Stderr, "n cannot be smaller than 0")
-		os.Exit(1)
+		return
 	}
 
 	images, err := fetchImages(folder, num)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "cannot read directory files")
-		os.Exit(1)
+		return
 	}
 	if len(images) == 0 {
 		fmt.Fprintln(os.Stderr, "no images in folder")
-		os.Exit(1)
+		return
 	}
-	collage := Collage{
+
+	collage := struct {
+		Folder string   `json:"folder"`
+		Images []string `json:"images"`
+	}{
 		filepath.Base(folder),
 		images,
 	}
@@ -80,7 +79,13 @@ func main() {
 		http.ServeFile(w, r, filepath.Join(folder, r.URL.Path[3:]))
 	})
 	http.HandleFunc("/data.json", func(w http.ResponseWriter, r *http.Request) {
-		dataHandler(w, r, collage)
+		js, err := json.Marshal(collage)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(js)
 	})
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, page)
@@ -89,16 +94,6 @@ func main() {
 	fmt.Printf("Collage of [%d] images from [%s] 🎨\n", len(collage.Images), folder)
 	fmt.Println("Serving on http://localhost:2222")
 	http.ListenAndServe(":2222", nil)
-}
-
-func dataHandler(w http.ResponseWriter, r *http.Request, collage Collage) {
-	js, err := json.Marshal(collage)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(js)
 }
 
 func fetchImages(folder string, num int) ([]string, error) {
@@ -113,18 +108,17 @@ func fetchImages(folder string, num int) ([]string, error) {
 		}
 		out = append(out, fp.Name())
 	}
-	Shuffle(out)
+
+	// shuffle array
+	for i := range out {
+		j := rand.Intn(i + 1)
+		out[i], out[j] = out[j], out[i]
+	}
+
 	if num != 0 && num < len(out){
 		return out[:num], nil
 	} else {
 		return out, nil
-	}
-}
-
-func Shuffle(a []string) {
-	for i := range a {
-		j := rand.Intn(i + 1)
-		a[i], a[j] = a[j], a[i]
 	}
 }
 
